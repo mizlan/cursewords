@@ -1054,26 +1054,42 @@ def main():
 
             # Letter entry
             elif not puzzle_complete and keypress.isalnum():
-                if not current_cell.is_blankish:
-                    overwrite_mode = True
-                current_cell.entry = keypress.upper()
 
                 if current_cell.marked_wrong:
                     current_cell.marked_wrong = False
                     current_cell.corrected = True
                 modified_since_save = True
-                cursor.advance_within_word(overwrite_mode, wrap_mode=True)
+
+                if current_cell.is_blankish:
+                    cursor.advance_within_word(overwrite_mode=False, wrap_mode=True)
+                else:
+                    is_last_letter = cursor.current_word()[-1] == cursor.position
+
+                    if is_last_letter:
+                        # jump to first blank in current word or next word
+                        cursor.advance_within_word(wrap_mode=True)
+                    else:
+                        # "overwrite" the word
+                        cursor.advance_within_word(overwrite_mode=True, wrap_mode=False)
+
+                # (the old cell)
+                current_cell.entry = keypress.upper()
 
             # Deletion keys
             elif (not puzzle_complete and
                   keypress.name in ['KEY_BACKSPACE', 'KEY_DELETE']):
-                current_cell.clear()
-                overwrite_mode = True
                 modified_since_save = True
-                if keypress.name == 'KEY_BACKSPACE':
-                    cursor.retreat_within_word(end_placement=True)
-                elif keypress.name == 'KEY_DELETE':
-                    cursor.advance_within_word(overwrite_mode=True)
+
+                # just delete current cell, do not move
+                if not current_cell.is_blankish:
+                    current_cell.clear()
+                else:
+                    # delete *after* you move
+                    if keypress.name == 'KEY_BACKSPACE':
+                        cursor.retreat_within_word(end_placement=True)
+                    elif keypress.name == 'KEY_DELETE':
+                        cursor.advance_within_word(overwrite_mode=True)
+                    grid.cells.get(cursor.position).clear()
 
             # Navigation
             elif (keypress.name in ['KEY_TAB'] or
